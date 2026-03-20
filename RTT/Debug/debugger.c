@@ -73,11 +73,11 @@ void Handle_Debug_Command(uint8_t cmd, uint8_t *payload, uint8_t len)
 {
     switch (cmd)
     {
-    case MAPPING_TABLE_REQUEST:
+    case CMD_REQ_MAP:
         Mapping_Table_Response_Upload();
         break;
 
-    case EDIT:
+    case CMD_SET_VAL:
         Edit_Process(payload, len);
         break;
 

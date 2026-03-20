@@ -8,7 +8,7 @@ void Param_Monitor_Upload()
 
     send_buf[ptr++] = FRAME_HEAD1;
     send_buf[ptr++] = FRAME_HEAD2;
-    send_buf[ptr++] = PARAM_MONITOR;
+    send_buf[ptr++] = CMD_MONITOR;
 
     uint8_t len_idx = ptr++;
 
@@ -43,7 +43,7 @@ void Mapping_Table_Response_Upload()
 
     send_buf[ptr++] = FRAME_HEAD1;
     send_buf[ptr++] = FRAME_HEAD2;
-    send_buf[ptr++] = MAPPING_TABLE_RESPONSE;
+    send_buf[ptr++] = CMD_MAPPING;
 
     uint8_t len_idx = ptr++;
 
