@@ -17,3 +17,4 @@ typedef enum
 
 void Param_Monitor_Upload();
 void Mapping_Table_Response_Upload();
+void Edit_Process(uint8_t *payload, uint8_t len);

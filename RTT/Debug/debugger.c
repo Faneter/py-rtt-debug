@@ -77,6 +77,10 @@ void Handle_Debug_Command(uint8_t cmd, uint8_t *payload, uint8_t len)
         Mapping_Table_Response_Upload();
         break;
 
+    case EDIT:
+        Edit_Process(payload, len);
+        break;
+
     default:
         break;
     }
