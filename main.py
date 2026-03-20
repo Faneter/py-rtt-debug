@@ -80,31 +80,37 @@ class RMDebugger:
             self.monitor_ids = sorted(self.param_map.keys())
 
     def run_cli(self):
-        """ 终端交互逻辑 """
-        print("--- RoboMaster 终端调参器 ---")
-        print("输入 'sync' 同步参数表, 'set [ID] [Val]' 修改参数, 'exit' 退出")
+        try:
+            """ 终端交互逻辑 """
+            print("--- RoboMaster 终端调参器 ---")
+            print("输入 'sync' 同步参数表, 'set [ID] [Val]' 修改参数, 'exit' 退出")
 
-        threading.Thread(target=self.receive_thread, daemon=True).start()
+            threading.Thread(target=self.receive_thread, daemon=True).start()
 
-        while self.running:
-            user_input = input("\n> ").strip().split()
-            if not user_input: continue
+            while self.running:
+                user_input = input("\n> ").strip().split()
+                if not user_input: continue
 
-            cmd = user_input[0].lower()
-            if cmd == "sync":
-                print("正在请求参数映射表...")
-                self.send_packet(CMD_REQ_MAP)
-            elif cmd == "set" and len(user_input) == 3:
-                p_id = int(user_input[1])
-                p_val = float(user_input[2])
-                # 打包 [ID(1B)][Value(4B float)]
-                payload = struct.pack("<Bf", p_id, p_val)
-                self.send_packet(CMD_SET_VAL, payload)
-                print(f"已下发修改指令: ID {p_id} = {p_val}")
-            elif cmd == "exit":
-                self.running = False
-                self.jlink.rtt_stop()
-                self.jlink.close()
+                cmd = user_input[0].lower()
+                if cmd == "sync":
+                    print("正在请求参数映射表...")
+                    self.send_packet(CMD_REQ_MAP)
+                elif cmd == "set" and len(user_input) == 3:
+                    p_id = int(user_input[1])
+                    p_val = float(user_input[2])
+                    # 打包 [ID(1B)][Value(4B float)]
+                    payload = struct.pack("<Bf", p_id, p_val)
+                    self.send_packet(CMD_SET_VAL, payload)
+                    print(f"已下发修改指令: ID {p_id} = {p_val}")
+                elif cmd == "exit":
+                    self.running = False
+                    self.jlink.rtt_stop()
+                    self.jlink.close()
+        except KeyboardInterrupt:
+            self.running = False
+            self.jlink.rtt_stop()
+            self.jlink.close()
+            print("程序已退出")
 
 
 if __name__ == "__main__":
