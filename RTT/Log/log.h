@@ -1,5 +1,4 @@
-#ifndef __LOG_H
-#define __LOG_H
+#pragma once
 
 #include <stdio.h>
 #include <SEGGER_RTT.h>
@@ -43,5 +42,3 @@ static int current_log_level = LOG_LEVEL_DEBUG;
 #define LOG_INFO(fmt, ...)  LOG_PRINT(LOG_LEVEL_INFO,  fmt, ##__VA_ARGS__)
 #define LOG_WARN(fmt, ...)  LOG_PRINT(LOG_LEVEL_WARN,  fmt, ##__VA_ARGS__)
 #define LOG_ERROR(fmt, ...) LOG_PRINT(LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
-
-#endif

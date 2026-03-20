@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <log.h>
 
 #define MAX_PARAM_COUNT 64 // 最大可监测的数据量
 
@@ -14,6 +13,13 @@ typedef enum
     TYPE_FLOAT,
     TYPE_INT32,
 } ParamType_t;
+
+/**
+ * 获取数据类型对应的字节数
+ */
+#define PARAM_TYPE_BYTES(type) \
+    (type == TYPE_FLOAT) ? 4 : \
+    (type == TYPE_INT32) ? 4 : -1
 
 /**
  * @brief 承载一个参数的结构体

@@ -1,6 +1,10 @@
 #include "param_list.h"
 
 #include "string.h"
+#include <log.h>
+
+Param_t param_pool[MAX_PARAM_COUNT] = {};
+uint8_t param_count = 0;
 
 int Param_Register(const char *name, void *ptr, ParamType_t type, bool is_monitor)
 {
