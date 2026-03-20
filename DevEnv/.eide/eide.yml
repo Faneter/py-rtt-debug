@@ -39,7 +39,7 @@ targets:
             $use: asm-auto
           beforeBuildTasks: []
           c/cpp-compiler:
-            language-c: c99
+            language-c: c17
             language-cpp: c++11
             misc-controls: -Wl,-u_printf_float
             optimization: level-0

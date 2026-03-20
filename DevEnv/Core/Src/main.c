@@ -22,8 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <debugger.h>
 #include <log.h>
-#include <param_list.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,7 +44,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+static float test = 1.3f;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -88,24 +88,16 @@ int main(void)
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
     /* USER CODE BEGIN 2 */
-
+    Param_Register("Test", &test, TYPE_FLOAT, true);
     /* USER CODE END 2 */
 
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1)
     {
+        Loop_Process();
         /* USER CODE END WHILE */
-        LOG_INFO("SUCCESSFULLY STARTED");
         HAL_Delay(1000);
-        static float test = 1.3f;
-        Param_t p = {
-            "TEST",
-            0,
-            &test,
-            TYPE_FLOAT,
-        };
-        LOG_DEBUG("Param name:%s, value:%f", p.name, *((float *)(p.ptr)));
         /* USER CODE BEGIN 3 */
     }
     /* USER CODE END 3 */
