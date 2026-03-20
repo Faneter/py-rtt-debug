@@ -32,7 +32,7 @@ void Param_Monitor_Upload()
     }
     send_buf[ptr++] = check_sum;
 
-    SEGGER_RTT_Write(1, send_buf, ptr);
+    SEGGER_RTT_Write(0, send_buf, ptr);
 }
 
 void Mapping_Table_Response_Upload()
@@ -68,10 +68,10 @@ void Mapping_Table_Response_Upload()
             ptr += strlen(param_pool[i].name);
             data_len += strlen(param_pool[i].name);
 
-            // VALUE
-            memcpy(&send_buf[ptr], param_pool[i].ptr, PARAM_TYPE_BYTES(param_pool[i].type));
-            ptr += PARAM_TYPE_BYTES(param_pool[i].type);
-            data_len += PARAM_TYPE_BYTES(param_pool[i].type);
+            // // VALUE
+            // memcpy(&send_buf[ptr], param_pool[i].ptr, PARAM_TYPE_BYTES(param_pool[i].type));
+            // ptr += PARAM_TYPE_BYTES(param_pool[i].type);
+            // data_len += PARAM_TYPE_BYTES(param_pool[i].type);
         }
     }
 
@@ -83,5 +83,5 @@ void Mapping_Table_Response_Upload()
     }
     send_buf[ptr++] = check_sum;
 
-    SEGGER_RTT_Write(1, send_buf, ptr);
+    SEGGER_RTT_Write(0, send_buf, ptr);
 }

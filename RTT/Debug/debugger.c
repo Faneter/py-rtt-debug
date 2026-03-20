@@ -81,3 +81,9 @@ void Handle_Debug_Command(uint8_t cmd, uint8_t *payload, uint8_t len)
         break;
     }
 }
+
+void Loop_Process()
+{
+    Param_Monitor_Upload();
+    Download_Processor();
+}

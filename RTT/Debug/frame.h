@@ -9,7 +9,7 @@
 
 typedef enum
 {
-    PARAM_MONITOR = 0,
+    PARAM_MONITOR = 1,
     MAPPING_TABLE_RESPONSE,
     MAPPING_TABLE_REQUEST,
     EDIT,
