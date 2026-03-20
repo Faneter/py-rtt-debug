@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <log.h>
+#include <param_list.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -97,6 +98,14 @@ int main(void)
         /* USER CODE END WHILE */
         LOG_INFO("SUCCESSFULLY STARTED");
         HAL_Delay(1000);
+        static float test = 1.3f;
+        Param_t p = {
+            "TEST",
+            0,
+            &test,
+            TYPE_FLOAT,
+        };
+        LOG_DEBUG("Param name:%s, value:%f", p.name, *((float *)(p.ptr)));
         /* USER CODE BEGIN 3 */
     }
     /* USER CODE END 3 */

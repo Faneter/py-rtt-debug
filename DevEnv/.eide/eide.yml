@@ -7,6 +7,7 @@ srcDirs:
   - Core
   - Drivers
   - ../RTT
+  - ../RTT/Debug
 virtualFolder:
   name: <virtual_root>
   files:
@@ -36,16 +37,15 @@ targets:
           afterBuildTasks: []
           asm-compiler:
             $use: asm-auto
-            misc-controls: ""
           beforeBuildTasks: []
           c/cpp-compiler:
             language-c: c99
             language-cpp: c++11
-            link-time-optimization: false
+            misc-controls: -Wl,-u_printf_float
             optimization: level-0
+            warnings: ac5-like-warnings
           global:
             output-debug-info: enable
-            use-microLIB: false
           linker:
             $outputTaskExcludes:
               - .bin
@@ -112,8 +112,8 @@ targets:
         baseAddr: ""
         bin: ""
         cpuInfo:
-          cpuName: "null"
-          vendor: "null"
+          cpuName: STM32F103C8
+          vendor: ST
         otherCmds: ""
         proType: 1
         speed: 8000
