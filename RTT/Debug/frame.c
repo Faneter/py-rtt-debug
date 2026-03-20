@@ -2,7 +2,7 @@
 
 void Param_Monitor_Upload()
 {
-    uint8_t send_buf[1024];
+    uint8_t send_buf[BUFFER_SIZE_UP];
     uint8_t ptr = 0;
     uint8_t check_sum = 0;
 
@@ -37,7 +37,7 @@ void Param_Monitor_Upload()
 
 void Mapping_Table_Response_Upload()
 {
-    uint8_t send_buf[1024];
+    uint8_t send_buf[BUFFER_SIZE_UP];
     uint8_t ptr = 0;
     uint8_t check_sum = 0;
 
@@ -54,12 +54,12 @@ void Mapping_Table_Response_Upload()
         if (param_pool[i].is_monitor)
         {
             // ID
-            memcpy(&send_buf[ptr], param_pool[i].id, 1);
+            memcpy(&send_buf[ptr], &param_pool[i].id, 1);
             ptr += 1;
             data_len += 1;
 
             // TYPE
-            memcpy(&send_buf[ptr], param_pool[i].type, 1);
+            memcpy(&send_buf[ptr], &param_pool[i].type, 1);
             ptr += 1;
             data_len += 1;
 
