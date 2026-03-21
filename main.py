@@ -1,7 +1,9 @@
+import json
 import pylink
 import struct
 import threading
 import time
+import socket
 
 # 协议常量
 FRAME_HEAD1, FRAME_HEAD2 = 0x5A, 0xA5
@@ -25,6 +27,9 @@ class DebuggerCLI:
         self.monitor_names = []  # 对应波形数据的变量名顺序
         self.monitor_ids = []
         self.running = True
+
+        self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.target_addr = ("127.0.0.1", 9999)
 
     def connect_jlink(self):
         """ 尝试建立连接 """
@@ -106,9 +111,12 @@ class DebuggerCLI:
         elif cmd == CMD_MONITOR:
             if self.monitor_fmt:
                 data = struct.unpack(self.monitor_fmt, payload)
+                update_data = {}
                 for i, val in enumerate(data):
                     target_id = self.monitor_ids[i]
                     self.param_map[target_id]['val'] = val
+                    update_data[str(target_id)] = val
+                self.udp_sock.sendto(json.dumps(update_data).encode(), self.target_addr)
         elif cmd == CMD_SET_ACK:
             self.handle_ack(payload)
 
