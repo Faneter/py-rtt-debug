@@ -15,6 +15,8 @@ typedef enum
     CMD_SET_VAL,
 } Frame_Cmd_t;
 
+void Send_Packet(Frame_Cmd_t cmd, uint8_t *payload, uint16_t len);
+
 void Param_Monitor_Upload();
 void Mapping_Table_Response_Upload();
 void Edit_Process(uint8_t *payload, uint8_t len);
