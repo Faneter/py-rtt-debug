@@ -51,7 +51,7 @@ class DebuggerCLI:
             if not self.connected: return None
             return self.jlink.rtt_read(0, 1024)
         except (pylink.errors.JLinkException, Exception) as e:
-            print(f"\n[WARN] JLink 连接已丢失，正在尝试重连...")
+            print(f"\n[WARN] J-Link 连接已丢失，正在尝试重连...")
             self.connected = False
             return None
 
@@ -62,7 +62,7 @@ class DebuggerCLI:
         :param payload: 要发送的内容
         """
         if not self.connected:
-            print(f"\n[ERROR] 未连接JLink, 无法发送指令")
+            print(f"\n[ERROR] 未连接J-Link, 无法发送指令")
             return
         try:
             payload = list(payload) if payload else []
@@ -197,7 +197,7 @@ class DebuggerCLI:
                         payload = struct.pack(f"<B{fmt}", p_id, val if 'f' in fmt else int(val))
                         self.send_packet(CMD_SET_VAL, payload)
                     except struct.error:
-                        print("\n[ERROR] 数据格式或范围不匹配")
+                        print("\n[WARN] 输入数据格式或范围不匹配")
                 elif op == "exit":
                     self.running = False
                     self.jlink.rtt_stop()
