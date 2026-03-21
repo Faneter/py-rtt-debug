@@ -16,11 +16,9 @@ TYPE_INFO = {
 
 class RMDebuggerCLI:
     def __init__(self, chip="STM32F103C8"):
+        self.chip = chip
         self.jlink = pylink.JLink()
-        self.jlink.open()
-        self.jlink.set_tif(pylink.enums.JLinkInterfaces.SWD)
-        self.jlink.connect(chip)
-        self.jlink.rtt_start()
+        self.connected = False
 
         self.param_map = {}  # id -> {name, type, is_monitor, init_val}
         self.monitor_fmt = ""  # 动态生成的波形解析格式，如 "<fH"
@@ -28,25 +26,71 @@ class RMDebuggerCLI:
         self.monitor_ids = []
         self.running = True
 
+    def connect_jlink(self):
+        """ 尝试建立连接 """
+        try:
+            if self.jlink.opened():
+                self.jlink.close()
+            self.jlink.open()
+            self.jlink.set_tif(pylink.enums.JLinkInterfaces.SWD)
+            self.jlink.connect(self.chip)
+            self.jlink.rtt_start()
+            self.connected = True
+            print(f"\n[INFO] J-Link已连接({self.chip})")
+
+            # 自动发一个sync
+            time.sleep(0.1)
+            self.send_packet(CMD_REQ_MAP)
+            return True
+        except (pylink.errors.JLinkException, Exception) as e:
+            self.connected = False
+            return False
+
+    def safe_rtt_read(self):
+        try:
+            if not self.connected: return None
+            return self.jlink.rtt_read(0, 1024)
+        except (pylink.errors.JLinkException, Exception) as e:
+            print(f"\n[WARN] JLink 连接已丢失，正在尝试重连...")
+            self.connected = False
+            return None
+
     def send_packet(self, cmd, payload=None):
-        payload = list(payload) if payload else []
-        full_pkg = [FRAME_HEAD1, FRAME_HEAD2, cmd, len(payload)] + payload
-        full_pkg.append(sum(full_pkg[2:]) & 0xFF)
-        self.jlink.rtt_write(0, full_pkg)
+        """
+        带状态检查的发送
+        :param cmd: 要发送的指令码
+        :param payload: 要发送的内容
+        """
+        if not self.connected:
+            print(f"\n[ERROR] 未连接JLink, 无法发送指令")
+            return
+        try:
+            payload = list(payload) if payload else []
+            full_pkg = [FRAME_HEAD1, FRAME_HEAD2, cmd, len(payload)] + payload
+            full_pkg.append(sum(full_pkg[2:]) & 0xFF)
+            self.jlink.rtt_write(0, full_pkg)
+        except:
+            self.connected = False
 
     def receive_loop(self):
         buffer = bytearray()
         while self.running:
-            data = self.jlink.rtt_read(0, 1024)
+            if not self.connected:
+                # 如果断开了，每隔1秒尝试重连一次
+                if self.connect_jlink():
+                    buffer.clear() # 重连后清空缓冲区，防止残留脏数据
+                else:
+                    time.sleep(1)
+                    continue
+
+            data = self.safe_rtt_read()
             if data:
                 buffer.extend(data)
                 while len(buffer) >= 5:
                     if buffer[0] == FRAME_HEAD1 and buffer[1] == FRAME_HEAD2:
                         cmd = buffer[2]
                         length = struct.unpack("<H", buffer[3:5])[0]
-
                         total_pkg_len = 2 + 1 + 2 + length + 1
-
                         if len(buffer) < total_pkg_len: break
                         payload = buffer[5: 5 + length]
                         if (sum(buffer[2: 5 + length]) & 0xFF) == buffer[5 + length]:
