@@ -14,7 +14,7 @@ TYPE_INFO = {
 }
 
 
-class RMDebuggerCLI:
+class DebuggerCLI:
     def __init__(self, chip="STM32F103C8"):
         self.chip = chip
         self.jlink = pylink.JLink()
@@ -180,7 +180,7 @@ class RMDebuggerCLI:
     def run(self):
         try:
             threading.Thread(target=self.receive_loop, daemon=True).start()
-            print("--- RM 通用调试终端 --- (输入 'sync', 'ls', 'set [id] [val]', 'exit')")
+            print("--- 通用调试终端 --- (输入 'sync', 'ls', 'set [id] [val]', 'exit')")
             while self.running:
                 cmd_in = input("\n>> ").strip().split()
                 if not cmd_in: continue
@@ -193,8 +193,11 @@ class RMDebuggerCLI:
                     p_id, val = int(cmd_in[1]), float(cmd_in[2])
                     fmt = TYPE_INFO[ord(self.param_map[p_id]['type'])][0]
                     # 根据该 ID 的实际类型进行打包发送
-                    payload = struct.pack(f"<B{fmt}", p_id, val if 'f' in fmt else int(val))
-                    self.send_packet(CMD_SET_VAL, payload)
+                    try:
+                        payload = struct.pack(f"<B{fmt}", p_id, val if 'f' in fmt else int(val))
+                        self.send_packet(CMD_SET_VAL, payload)
+                    except struct.error:
+                        print("\n[ERROR] 数据格式或范围不匹配")
                 elif op == "exit":
                     self.running = False
                     self.jlink.rtt_stop()
@@ -206,4 +209,4 @@ class RMDebuggerCLI:
 
 
 if __name__ == "__main__":
-    RMDebuggerCLI().run()
+    DebuggerCLI().run()
