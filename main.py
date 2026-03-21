@@ -4,15 +4,17 @@ import threading
 import time
 
 # 协议常量
-FRAME_HEAD1 = 0x5A
-FRAME_HEAD2 = 0xA5
-CMD_MONITOR = 0x01
-CMD_MAPPING = 0x02
-CMD_REQ_MAP = 0x03
-CMD_SET_VAL = 0x04
+FRAME_HEAD1, FRAME_HEAD2 = 0x5A, 0xA5
+CMD_MONITOR, CMD_MAPPING, CMD_REQ_MAP, CMD_SET_VAL = 0x01, 0x02, 0x03, 0x04
+
+# 类型映射表：字符 -> (struct格式, 字节数)
+TYPE_INFO = {
+    ord('f'): ('f', 4), ord('i'): ('i', 4), ord('I'): ('I', 4),
+    ord('h'): ('h', 2), ord('H'): ('H', 2), ord('b'): ('b', 1), ord('B'): ('B', 1)
+}
 
 
-class RMDebugger:
+class RMDebuggerCLI:
     def __init__(self, chip="STM32F103C8"):
         self.jlink = pylink.JLink()
         self.jlink.open()
@@ -20,89 +22,119 @@ class RMDebugger:
         self.jlink.connect(chip)
         self.jlink.rtt_start()
 
-        self.param_map = {}  # ID -> {name, is_monitor}
-        self.monitor_ids = []  # 缓存需要监控的 ID 顺序
+        self.param_map = {}  # id -> {name, type, is_monitor, init_val}
+        self.monitor_fmt = ""  # 动态生成的波形解析格式，如 "<fH"
+        self.monitor_names = []  # 对应波形数据的变量名顺序
+        self.monitor_ids = []
         self.running = True
 
     def send_packet(self, cmd, payload=None):
-        """ 封装并发送协议包 """
-        if payload is None: payload = []
-        full_pkg = [FRAME_HEAD1, FRAME_HEAD2, cmd, len(payload)] + list(payload)
-        # 计算校验和 (CMD + Len + Payload)
-        check_sum = sum(full_pkg[2:]) & 0xFF
-        full_pkg.append(check_sum)
+        payload = list(payload) if payload else []
+        full_pkg = [FRAME_HEAD1, FRAME_HEAD2, cmd, len(payload)] + payload
+        full_pkg.append(sum(full_pkg[2:]) & 0xFF)
         self.jlink.rtt_write(0, full_pkg)
 
-    def receive_thread(self):
-        """ 异步接收线程：处理 MCU 发来的所有数据 """
+    def receive_loop(self):
         buffer = bytearray()
         while self.running:
             data = self.jlink.rtt_read(0, 1024)
             if data:
                 buffer.extend(data)
-
-                # 状态机解析缓冲区
                 while len(buffer) >= 5:
                     if buffer[0] == FRAME_HEAD1 and buffer[1] == FRAME_HEAD2:
                         cmd = buffer[2]
-                        length = buffer[3]
-                        if len(buffer) < 5 + length: break  # 数据还没收全
+                        length = struct.unpack("<H", buffer[3:5])[0]
 
-                        payload = buffer[4: 4 + length]
-                        checksum = buffer[4 + length]
+                        total_pkg_len = 2 + 1 + 2 + length + 1
 
-                        # 验证校验和
-                        if (sum(buffer[2: 4 + length]) & 0xFF) == checksum:
+                        if len(buffer) < total_pkg_len: break
+                        payload = buffer[5: 5 + length]
+                        if (sum(buffer[2: 5 + length]) & 0xFF) == buffer[5 + length]:
                             self.handle_payload(cmd, payload)
-
-                        del buffer[: 5 + length]  # 弹出已处理的包
+                        del buffer[: total_pkg_len]
                     else:
-                        del buffer[0]  # 找错帧头了，删掉第一个字节继续找
+                        del buffer[0]
             time.sleep(0.01)
 
     def handle_payload(self, cmd, payload):
-        if cmd == CMD_MONITOR:
-            # 高速数据解析 (假设全部为 float)
-            num_floats = len(payload) // 4
-            values = struct.unpack(f"<{num_floats}f", payload)
-            # 简易打印（在实际应用中，这里应喂给绘图器）
-            # print(f"\r[MONITOR] {dict(zip(self.monitor_ids, values))}", end="")
-            pass
+        if cmd == CMD_MAPPING:
+            self.parse_mapping_package(payload)
+        elif cmd == CMD_MONITOR:
+            if self.monitor_fmt:
+                data = struct.unpack(self.monitor_fmt, payload)
+                for i, val in enumerate(data):
+                    target_id = self.monitor_ids[i]
+                    self.param_map[target_id]['val'] = val
 
-        elif cmd == CMD_MAPPING:
-            # 解析映射条目: [ID(1B)][Type(1B)][Name(String)]
-            p_id = payload[0]
-            p_type = payload[1]
-            p_name = payload[2:].decode('utf-8').strip('\x00')
-            self.param_map[p_id] = {"name": p_name, "is_monitor": True}  # 简化逻辑
-            print(f"\n[MAP] 已同步: ID {p_id} -> {p_name}")
-            # 更新监控顺序（按 ID 升序）
-            self.monitor_ids = sorted(self.param_map.keys())
+    def parse_mapping_package(self, payload):
+        """ 解析重构后的变长映射大包 """
+        ptr = 0
+        new_map = {}
+        while ptr < len(payload):
+            p_id = payload[ptr]
+            ptr += 1
+            p_type = payload[ptr]
+            ptr += 1
+            p_monitor = bool(payload[ptr])
+            ptr += 1
 
-    def run_cli(self):
+            # 根据类型解出初始 Value
+            fmt, size = TYPE_INFO.get(p_type, ('f', 4))
+            val = struct.unpack(f"<{fmt}", payload[ptr: ptr + size])[0]
+            ptr += size
+
+            # 提取以 \0 结尾的 Name
+            end = payload.find(b'\x00', ptr)
+            name = payload[ptr:end].decode('utf-8')
+            ptr = end + 1
+
+            new_map[p_id] = {'name': name, 'type': chr(p_type), 'is_monitor': p_monitor, 'val': val}
+
+        self.param_map = new_map
+        self.rebuild_monitor_config()
+        print("\n[SYSTEM] 映射表同步完成:")
+        for i, info in self.param_map.items():
+            print(f" ID {i}: {info['name']} ({info['type']}) | Monitor: {info['is_monitor']} | Value: {info['val']}")
+
+    def rebuild_monitor_config(self):
+        """ 重新构建波形解析格式 """
+        # 1. 筛选出所有 is_monitor 为 True 的参数 ID，并进行升序排序
+        self.monitor_ids = sorted([
+            p_id for p_id, info in self.param_map.items() if info['is_monitor']
+        ])
+
+        # 2. 根据排序后的 ID 顺序，构建 struct 解析字符串
+        # 比如 ID 0 是 float, ID 2 是 uint16 -> 格式为 "<fH"
+        fmt_parts = []
+        self.monitor_names = []
+
+        for p_id in self.monitor_ids:
+            info = self.param_map[p_id]
+            fmt_parts.append(TYPE_INFO[ord(info['type'])][0])
+            self.monitor_names.append(info['name'])
+
+        self.monitor_fmt = "<" + "".join(fmt_parts)
+        print(f"[DEBUG] 监控序列已更新: {self.monitor_names} (格式: {self.monitor_fmt})")
+
+    def run(self):
         try:
-            """ 终端交互逻辑 """
-            print("--- RoboMaster 终端调参器 ---")
-            print("输入 'sync' 同步参数表, 'set [ID] [Val]' 修改参数, 'exit' 退出")
-
-            threading.Thread(target=self.receive_thread, daemon=True).start()
-
+            threading.Thread(target=self.receive_loop, daemon=True).start()
+            print("--- RM 通用调试终端 --- (输入 'sync', 'ls', 'set [id] [val]', 'exit')")
             while self.running:
-                user_input = input("\n> ").strip().split()
-                if not user_input: continue
-
-                cmd = user_input[0].lower()
-                if cmd == "sync":
-                    print("正在请求参数映射表...")
+                cmd_in = input("\n>> ").strip().split()
+                if not cmd_in: continue
+                op = cmd_in[0].lower()
+                if op == "sync":
                     self.send_packet(CMD_REQ_MAP)
-                elif cmd == "set" and len(user_input) == 3:
-                    p_id = int(user_input[1])
-                    p_val = float(user_input[2])
-                    # 打包 [ID(1B)][Value(4B float)]
-                    payload = struct.pack("<Bf", p_id, p_val)
+                elif op == "ls":
+                    for i, v in self.param_map.items(): print(f"[{i}] {v['name']}: {v['val']}")
+                elif op == "set" and len(cmd_in) == 3:
+                    p_id, val = int(cmd_in[1]), float(cmd_in[2])
+                    fmt = TYPE_INFO[ord(self.param_map[p_id]['type'])][0]
+                    # 根据该 ID 的实际类型进行打包发送
+                    payload = struct.pack(f"<B{fmt}", p_id, val if 'f' in fmt else int(val))
                     self.send_packet(CMD_SET_VAL, payload)
-                    print(f"已下发修改指令: ID {p_id} = {p_val}")
-                elif cmd == "exit":
+                elif op == "exit":
                     self.running = False
                     self.jlink.rtt_stop()
                     self.jlink.close()
@@ -110,9 +142,7 @@ class RMDebugger:
             self.running = False
             self.jlink.rtt_stop()
             self.jlink.close()
-            print("程序已退出")
 
 
 if __name__ == "__main__":
-    dbg = RMDebugger()
-    dbg.run_cli()
+    RMDebuggerCLI().run()
