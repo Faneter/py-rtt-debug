@@ -101,7 +101,7 @@ int main(void)
     {
         Loop_Process();
         /* USER CODE END WHILE */
-        HAL_Delay(100);
+        HAL_Delay(20);
         /* USER CODE BEGIN 3 */
     }
     /* USER CODE END 3 */
