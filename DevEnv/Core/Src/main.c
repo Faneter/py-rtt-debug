@@ -45,6 +45,8 @@
 
 /* USER CODE BEGIN PV */
 static float test = 1.3f;
+static float test2 = 0.8f;
+static int16_t test_int16 = -19;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -89,6 +91,8 @@ int main(void)
     MX_GPIO_Init();
     /* USER CODE BEGIN 2 */
     Param_Register("Test", &test, TYPE_FLOAT, true);
+    Param_Register("Test2", &test2, TYPE_FLOAT, true);
+    Param_Register("Test3", &test_int16, TYPE_INT16, false);
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -97,7 +101,7 @@ int main(void)
     {
         Loop_Process();
         /* USER CODE END WHILE */
-        HAL_Delay(1000);
+        HAL_Delay(100);
         /* USER CODE BEGIN 3 */
     }
     /* USER CODE END 3 */
