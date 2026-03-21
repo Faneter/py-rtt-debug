@@ -3,23 +3,31 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MAX_PARAM_COUNT 64 // 最大可监测的数据量
+#define MAX_PARAM_COUNT 16 // 最大可监测的数据量
 
 /**
  * @brief 数据类型
  */
 typedef enum
 {
-    TYPE_FLOAT,
-    TYPE_INT32,
+    TYPE_FLOAT = 'f',
+    TYPE_INT32 = 'i',
+    TYPE_UINT32 = 'I',
+    TYPE_INT16 = 'h',
+    TYPE_UINT16 = 'H',
+    TYPE_INT8 = 'b',
+    TYPE_UINT8 = 'B',
 } ParamType_t;
 
+// clang-format off
 /**
- * 获取数据类型对应的字节数
+ * @brief 获取数据类型对应的字节数
  */
 #define PARAM_TYPE_BYTES(type) \
-    (type == TYPE_FLOAT) ? 4 : \
-    (type == TYPE_INT32) ? 4 : -1
+    (type == TYPE_FLOAT || type == TYPE_INT32 || type == TYPE_UINT32) ? 4 : \
+    (type == TYPE_INT16 || type == TYPE_UINT16)                       ? 2 : \
+    (type == TYPE_INT8  || type == TYPE_UINT8)                        ? 1 : -1
+// clang-format on
 
 /**
  * @brief 承载一个参数的结构体
