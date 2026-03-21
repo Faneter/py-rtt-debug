@@ -89,5 +89,8 @@ void Mapping_Table_Response_Upload()
 void Edit_Process(uint8_t *payload, uint8_t len)
 {
     uint8_t id = payload[0];
-    memcpy(param_pool[id].ptr, payload + 1, len - 1);
+    if (id < param_count)
+    {
+        memcpy(param_pool[id].ptr, payload + 1, len - 1);
+    }
 }
