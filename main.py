@@ -5,7 +5,7 @@ import time
 
 # 协议常量
 FRAME_HEAD1, FRAME_HEAD2 = 0x5A, 0xA5
-CMD_MONITOR, CMD_MAPPING, CMD_REQ_MAP, CMD_SET_VAL = 0x01, 0x02, 0x03, 0x04
+CMD_MONITOR, CMD_MAPPING, CMD_REQ_MAP, CMD_SET_VAL, CMD_SET_ACK = 0x01, 0x02, 0x03, 0x04, 0x05
 
 # 类型映射表：字符 -> (struct格式, 字节数)
 TYPE_INFO = {
@@ -78,7 +78,7 @@ class RMDebuggerCLI:
             if not self.connected:
                 # 如果断开了，每隔1秒尝试重连一次
                 if self.connect_jlink():
-                    buffer.clear() # 重连后清空缓冲区，防止残留脏数据
+                    buffer.clear()  # 重连后清空缓冲区，防止残留脏数据
                 else:
                     time.sleep(1)
                     continue
@@ -109,6 +109,23 @@ class RMDebuggerCLI:
                 for i, val in enumerate(data):
                     target_id = self.monitor_ids[i]
                     self.param_map[target_id]['val'] = val
+        elif cmd == CMD_SET_ACK:
+            self.handle_ack(payload)
+
+    def handle_ack(self, payload):
+        """ 处理来自MCU的修改确认 """
+        p_id = payload[0]
+        if p_id in self.param_map:
+            p_type = self.param_map[p_id]['type']
+            fmt, size = TYPE_INFO[ord(p_type)]
+            # 解析返回的真实值
+            final_val = struct.unpack(f"<{fmt}", payload[1:1 + size])[0]
+
+            # 更新本地镜像并打印提示
+            self.param_map[p_id]['val'] = final_val
+            print(f"\n[ACK] 参数修改成功: ID {p_id} ({self.param_map[p_id]['name']}) -> {final_val}")
+        else:
+            print(f"\n[WARN] 收到未知的参数ACK (ID: {p_id})")
 
     def parse_mapping_package(self, payload):
         """ 解析重构后的变长映射大包 """

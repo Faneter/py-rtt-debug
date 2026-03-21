@@ -13,12 +13,13 @@ typedef enum
     CMD_MAPPING,
     CMD_REQ_MAP,
     CMD_SET_VAL,
+    CMD_SET_ACK,
 } Frame_Cmd_t;
 
 /**
  * @brief 发送数据包
  *
- * 数据包格式：[FRAME_HEAD(2B)][CMD(1B)][PAYLOAD_LEN(1B)][PAYLOAD][CHECKSUM(1B)]
+ * 数据包格式：[FRAME_HEAD(2B)][CMD(1B)][PAYLOAD_LEN(2B)][PAYLOAD][CHECKSUM(1B)]
  *
  * @param cmd 数据包指令位
  * @param payload 数据包内容

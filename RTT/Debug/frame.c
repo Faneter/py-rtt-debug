@@ -88,5 +88,8 @@ void Edit_Process(uint8_t *payload, uint8_t len)
     if (id < param_count)
     {
         memcpy(param_pool[id].ptr, payload + 1, len - 1);
+
+        // 回传ACK包
+        Send_Packet(CMD_SET_ACK, payload, len);
     }
 }
