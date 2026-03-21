@@ -1,8 +1,10 @@
 #include "frame.h"
 
-void Send_Packet(Frame_Cmd_t cmd, uint8_t *payload, uint16_t len)
+static uint8_t payload[BUFFER_SIZE_UP];
+static uint8_t full_pkg[BUFFER_SIZE_UP];
+
+void Send_Packet(Frame_Cmd_t cmd, uint8_t *payload, uint8_t len)
 {
-    uint8_t full_pkg[BUFFER_SIZE_UP];
     uint8_t ptr = 0;
     uint8_t check_sum = 0;
 
@@ -25,7 +27,6 @@ void Send_Packet(Frame_Cmd_t cmd, uint8_t *payload, uint16_t len)
 
 void Param_Monitor_Upload()
 {
-    uint8_t payload[BUFFER_SIZE_UP];
     uint8_t len = 0;
 
     for (size_t i = 0; i < param_count; i++)
@@ -47,27 +48,26 @@ void Mapping_Table_Response_Upload()
 
     for (size_t i = 0; i < param_count; i++)
     {
-        if (param_pool[i].is_monitor)
-        {
-            // ID
-            memcpy(&payload[len], &param_pool[i].id, 1);
-            len += 1;
+        len = 0;
 
-            // TYPE
-            memcpy(&payload[len], &param_pool[i].type, 1);
-            len += 1;
+        // ID
+        memcpy(&payload[len], &param_pool[i].id, 1);
+        len += 1;
 
-            // NAME
-            memcpy(&payload[len], param_pool[i].name, strlen(param_pool[i].name));
-            len += strlen(param_pool[i].name);
+        // TYPE
+        memcpy(&payload[len], &param_pool[i].type, 1);
+        len += 1;
 
-            // // VALUE
-            // memcpy(&payload[len], param_pool[i].ptr, PARAM_TYPE_BYTES(param_pool[i].type));
-            // len += PARAM_TYPE_BYTES(param_pool[i].type);
-        }
+        // NAME
+        memcpy(&payload[len], param_pool[i].name, strlen(param_pool[i].name));
+        len += strlen(param_pool[i].name);
+
+        // // VALUE
+        // memcpy(&payload[len], param_pool[i].ptr, PARAM_TYPE_BYTES(param_pool[i].type));
+        // len += PARAM_TYPE_BYTES(param_pool[i].type);
+
+        Send_Packet(CMD_MAPPING, payload, len);
     }
-
-    Send_Packet(CMD_MAPPING, payload, len);
 }
 
 void Edit_Process(uint8_t *payload, uint8_t len)
