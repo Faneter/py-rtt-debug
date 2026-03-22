@@ -92,7 +92,7 @@ int main(void)
     /* USER CODE BEGIN 2 */
     Param_Register("Test", &test, TYPE_FLOAT, true);
     Param_Register("Test2", &test2, TYPE_FLOAT, true);
-    Param_Register("Test3", &test_int16, TYPE_INT16, false);
+    Param_Register("Test3", &test_int16, TYPE_INT16, true);
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -101,6 +101,7 @@ int main(void)
     {
         Loop_Process();
         /* USER CODE END WHILE */
+        test_int16 = HAL_GetTick() / 10;
         HAL_Delay(20);
         /* USER CODE BEGIN 3 */
     }
