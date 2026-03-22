@@ -13,7 +13,11 @@ class UDPReceiver(QThread):
     def run(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # 允许多个窗口监听同一个UDP端口
-        sock.bind(("127.0.0.1", 9999))
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except AttributeError:
+            pass
+        sock.bind(('', 9999))
         while True:
             try:
                 data, _ = sock.recvfrom(4096)

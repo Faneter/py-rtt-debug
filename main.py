@@ -32,7 +32,8 @@ class DebuggerCLI:
         self.running = True
 
         self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.target_addr = ("127.0.0.1", 9999)
+        self.udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.target_addr = ("255.255.255.255", 9999)
 
     def connect_jlink(self):
         """ 尝试建立连接 """
