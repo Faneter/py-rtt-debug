@@ -1,4 +1,7 @@
 import json
+import subprocess
+import sys
+
 import pylink
 import struct
 import threading
@@ -206,6 +209,17 @@ class DebuggerCLI:
                         self.send_packet(CMD_SET_VAL, payload)
                     except struct.error:
                         print("\n[WARN] 输入数据格式或范围不匹配")
+                elif op == "plot":
+                    if len(cmd_in) < 2:
+                        print("\n[WARN] 输入格式错误")
+                        continue
+                    target_ids = cmd_in[1:]
+                    try:
+                        target_ids = [id for id in target_ids if int(id) in self.monitor_ids]
+                        subprocess.Popen([sys.executable, "display.py"] + target_ids)
+                        print(f"\n[INFO] 正在唤起 ID {target_ids} 的波形窗口")
+                    except Exception as e:
+                        print(f"\n[ERROR] 无法启动显示进程: {e}")
                 elif op == "exit":
                     self.running = False
                     self.jlink.rtt_stop()
