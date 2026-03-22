@@ -1,4 +1,5 @@
 import json
+import os.path
 import subprocess
 import sys
 
@@ -219,8 +220,12 @@ class DebuggerCLI:
                         continue
                     target_ids = cmd_in[1:]
                     try:
-                        target_ids = [id for id in target_ids if int(id) in self.monitor_ids]
-                        subprocess.Popen([sys.executable, "display.py"] + target_ids)
+                        target_ids = [tid for tid in target_ids if int(tid) in self.monitor_ids]
+                        if getattr(sys, 'frozen', False):
+                            exe_path = os.path.join(os.path.dirname(sys.executable), "display.exe")
+                            subprocess.Popen([exe_path] + target_ids)
+                        else:
+                            subprocess.Popen([sys.executable, "display.py"] + target_ids)
                         print(f"\n[INFO] 正在唤起 ID {target_ids} 的波形窗口")
                     except Exception as e:
                         print(f"\n[ERROR] 无法启动显示进程: {e}")
