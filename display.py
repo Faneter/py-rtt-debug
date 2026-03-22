@@ -30,22 +30,29 @@ class PlotWindow(QMainWindow):
         self.resize(800, 600)
 
         self.plot_widget = pg.PlotWidget()
+        self.plot_widget.addLegend(offset=(30, 30))
+        self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
         self.setCentralWidget(self.plot_widget)
-        self.curves = {}
-        self.data_history = {}
 
-        for i, tid in enumerate(self.target_ids):
-            self.curves[tid] = self.plot_widget.plot(pen=pg.mkPen(i, width=2), name=f"ID:{tid}")
-            self.data_history[tid] = []
+        self.curves = {}
+        self.data_history = {tid: [] for tid in self.target_ids}
 
         self.receiver = UDPReceiver()
         self.receiver.data_signal.connect(self.update_plot)
         self.receiver.start()
 
     def update_plot(self, data_dict):
-        for tid in self.target_ids:
+        for i, tid in enumerate(self.target_ids):
             if tid in data_dict:
-                val = data_dict[tid]
+                item = data_dict[tid]
+                val = item['val']
+                name = item['name']
+
+                if tid not in self.curves:
+                    pen = pg.mkPen(color=pg.intColor(i, hues=len(self.target_ids)), width=2)
+                    lable_name = f"{name} (ID:{tid})"
+                    self.curves[tid] = self.plot_widget.plot(pen=pen, name=lable_name)
+
                 self.data_history[tid].append(val)
                 if len(self.data_history[tid]) > 1000:
                     self.data_history[tid].pop(0)

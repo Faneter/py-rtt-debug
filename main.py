@@ -118,7 +118,10 @@ class DebuggerCLI:
                 for i, val in enumerate(data):
                     target_id = self.monitor_ids[i]
                     self.param_map[target_id]['val'] = val
-                    update_data[str(target_id)] = val
+                    update_data[str(target_id)] = {
+                        "name": self.param_map[target_id]['name'],
+                        "val": val
+                    }
                 self.udp_sock.sendto(json.dumps(update_data).encode(), self.target_addr)
         elif cmd == CMD_SET_ACK:
             self.handle_ack(payload)
