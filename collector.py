@@ -169,7 +169,7 @@ class DebuggerCLI:
 
         self.param_map = new_map
         self.rebuild_monitor_config()
-        print("\n[SYSTEM] 映射表同步完成:")
+        print("\n[INFO] 映射表同步完成:")
         for i, info in self.param_map.items():
             print(f" ID {i}: {info['name']} ({info['type']}) | Monitor: {info['is_monitor']} | Value: {info['val']}")
 
@@ -196,7 +196,8 @@ class DebuggerCLI:
     def run(self):
         try:
             threading.Thread(target=self.receive_loop, daemon=True).start()
-            print("--- 通用调试终端 --- (输入 'sync', 'ls', 'set [id] [val]', 'exit')")
+            print("--- 通用调试终端 ---")
+            print("(输入 'sync', 'ls', 'set [id] [val]', 'plot [id1] [id2] ...', 'exit')")
             while self.running:
                 cmd_in = input("\n>> ").strip().split()
                 if not cmd_in: continue
