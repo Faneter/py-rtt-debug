@@ -10,13 +10,13 @@
  */
 typedef enum
 {
-    TYPE_FLOAT = 'f',
-    TYPE_INT32 = 'i',
-    TYPE_UINT32 = 'I',
-    TYPE_INT16 = 'h',
-    TYPE_UINT16 = 'H',
-    TYPE_INT8 = 'b',
-    TYPE_UINT8 = 'B',
+    DEBUGGER_TYPE_FLOAT = 'f',
+    DEBUGGER_TYPE_INT32 = 'i',
+    DEBUGGER_TYPE_UINT32 = 'I',
+    DEBUGGER_TYPE_INT16 = 'h',
+    DEBUGGER_TYPE_UINT16 = 'H',
+    DEBUGGER_TYPE_INT8 = 'b',
+    DEBUGGER_TYPE_UINT8 = 'B',
 } ParamType_t;
 
 // clang-format off
@@ -24,9 +24,9 @@ typedef enum
  * @brief 获取数据类型对应的字节数
  */
 #define PARAM_TYPE_BYTES(type) \
-    (type == TYPE_FLOAT || type == TYPE_INT32 || type == TYPE_UINT32) ? 4 : \
-    (type == TYPE_INT16 || type == TYPE_UINT16)                       ? 2 : \
-    (type == TYPE_INT8  || type == TYPE_UINT8)                        ? 1 : -1
+    (type == DEBUGGER_TYPE_FLOAT || type == DEBUGGER_TYPE_INT32 || type == DEBUGGER_TYPE_UINT32) ? 4 : \
+    (type == DEBUGGER_TYPE_INT16 || type == DEBUGGER_TYPE_UINT16)                       ? 2 : \
+    (type == DEBUGGER_TYPE_INT8  || type == DEBUGGER_TYPE_UINT8)                        ? 1 : -1
 // clang-format on
 
 /**
