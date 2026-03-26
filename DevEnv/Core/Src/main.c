@@ -90,9 +90,9 @@ int main(void)
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
     /* USER CODE BEGIN 2 */
-    Param_Register("Test", &test, TYPE_FLOAT, true);
-    Param_Register("Test2", &test2, TYPE_FLOAT, true);
-    Param_Register("Test3", &test_int16, TYPE_INT16, true);
+    Param_Register("Test", &test, DEBUGGER_TYPE_FLOAT, true);
+    Param_Register("Test2", &test2, DEBUGGER_TYPE_FLOAT, true);
+    Param_Register("Test3", &test_int16, DEBUGGER_TYPE_INT16, true);
     /* USER CODE END 2 */
 
     /* Infinite loop */
