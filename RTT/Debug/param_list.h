@@ -47,7 +47,18 @@ typedef struct __attribute__((packed))
     bool is_monitor;
 } Param_t;
 
+// 参数池
 extern Param_t param_pool[MAX_PARAM_COUNT];
+// 参数池中已注册的参数的数量
 extern uint8_t param_count;
 
+/**
+ * @brief 将要进行观测的参数进行注册
+ * 
+ * @param name 为要注册的参数命名
+ * @param ptr 要注册的参数的指针
+ * @param type 要注册的参数的类型
+ * @param is_monitor 是否实时监控该参数
+ * @return int 注册后的的参数在参数池中的序列，若为-1则说明参数池已满
+ */
 int Param_Register(const char *name, void *ptr, ParamType_t type, bool is_monitor);
