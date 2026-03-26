@@ -25,8 +25,8 @@ typedef enum
  */
 #define PARAM_TYPE_BYTES(type) \
     (type == DEBUGGER_TYPE_FLOAT || type == DEBUGGER_TYPE_INT32 || type == DEBUGGER_TYPE_UINT32) ? 4 : \
-    (type == DEBUGGER_TYPE_INT16 || type == DEBUGGER_TYPE_UINT16)                       ? 2 : \
-    (type == DEBUGGER_TYPE_INT8  || type == DEBUGGER_TYPE_UINT8)                        ? 1 : -1
+    (type == DEBUGGER_TYPE_INT16 || type == DEBUGGER_TYPE_UINT16)                                ? 2 : \
+    (type == DEBUGGER_TYPE_INT8  || type == DEBUGGER_TYPE_UINT8)                                 ? 1 : -1
 // clang-format on
 
 /**
@@ -49,6 +49,7 @@ typedef struct __attribute__((packed))
 
 // 参数池
 extern Param_t param_pool[MAX_PARAM_COUNT];
+
 // 参数池中已注册的参数的数量
 extern uint8_t param_count;
 
