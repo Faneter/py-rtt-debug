@@ -11,10 +11,21 @@ from textual.binding import Binding
 from collector import Collector
 
 
+def get_resource_path(relative_path):
+    """获取资源的绝对路径，兼容开发环境和Pyinstaller打包环境"""
+    if getattr(sys, "frozen", False):
+        # Pyinstaller 打包后的临时目录路径
+        base_path = sys._MEIPASS
+    else:
+        # 正常开发环境
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
 class RTTTerminalApp(App):
     """RTT 调试终端主界面"""
 
-    CSS_PATH = "style.tcss"
+    CSS_PATH = get_resource_path("style.tcss")
     BINDINGS = [
         Binding("f1", "sync", "Sync (REQ_MAP)", show=True),
         Binding("f2", "clear_logs", "Clear Logs", show=True),

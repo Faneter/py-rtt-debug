@@ -30,14 +30,14 @@ pip install -r requirements.txt
 3. 运行
 
 ```bash
-python collector.py
+python main.py
 ```
 
 4. 打包为二进制可执行文件（可选）
 
 ```bash
 pyinstaller --onefile --noconsole display.py
-pyinstaller --onefile collector.py
+pyinstaller --onefile --add-data "style.tcss;." main.py
 ```
 
 ## 单片机端使用方法

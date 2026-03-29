@@ -1,4 +1,7 @@
-/collector.spec
-/display.spec
+*.spec
+*.pyc
+
 /dist/
 /build/
+
+/activate.bat
