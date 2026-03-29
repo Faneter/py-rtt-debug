@@ -1,0 +1,68 @@
+/* 整体布局 */
+Screen {
+    background: $surface;
+}
+
+#body {
+    height: 1fr;
+}
+
+/* 左侧参数列表 */
+#param_pane {
+    width: 25%;
+    border-right: tall $primary;
+    background: $surface;
+}
+
+#param_list {
+    height: 1fr;
+    border: none;
+}
+
+/* 中间主面板 */
+#center_pane {
+    width: 50%;
+}
+
+#dashboard_view {
+    height: 1fr;
+    padding: 1 2;
+}
+
+/* 调试器自身日志 (中间下方) */
+#dbg_log {
+    height: 20%;
+    background: $boost;
+    color: $text-muted;
+}
+
+#cmd_input {
+    dock: bottom;
+    margin: 0;
+}
+
+/* 右侧 MCU 日志 */
+#log_pane {
+    width: 25%;
+    border-left: tall $primary;
+    background: $panel;
+}
+
+#mcu_log {
+    height: 1fr;
+}
+
+/* 底部快捷键提示 */
+Footer {
+    background: $primary;
+    color: $text;
+}
+
+/* 状态标题 */
+.pane-title {
+    width: 100%;
+    background: $primary;
+    color: white;
+    text-align: center;
+    text-style: bold;
+}

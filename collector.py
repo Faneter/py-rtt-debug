@@ -1,5 +1,6 @@
 import json
 import os.path
+from queue import Queue
 import subprocess
 import sys
 
@@ -11,16 +12,27 @@ import socket
 
 # 协议常量
 FRAME_HEAD1, FRAME_HEAD2 = 0x5A, 0xA5
-CMD_MONITOR, CMD_MAPPING, CMD_REQ_MAP, CMD_SET_VAL, CMD_SET_ACK = 0x01, 0x02, 0x03, 0x04, 0x05
+CMD_MONITOR, CMD_MAPPING, CMD_REQ_MAP, CMD_SET_VAL, CMD_SET_ACK = (
+    0x01,
+    0x02,
+    0x03,
+    0x04,
+    0x05,
+)
 
 # 类型映射表：字符 -> (struct格式, 字节数)
 TYPE_INFO = {
-    ord('f'): ('f', 4), ord('i'): ('i', 4), ord('I'): ('I', 4),
-    ord('h'): ('h', 2), ord('H'): ('H', 2), ord('b'): ('b', 1), ord('B'): ('B', 1)
+    ord("f"): ("f", 4),
+    ord("i"): ("i", 4),
+    ord("I"): ("I", 4),
+    ord("h"): ("h", 2),
+    ord("H"): ("H", 2),
+    ord("b"): ("b", 1),
+    ord("B"): ("B", 1),
 }
 
 
-class DebuggerCLI:
+class Collector:
     def __init__(self, chip="STM32F103C8"):
         self.chip = chip
         self.jlink = pylink.JLink()
@@ -32,12 +44,18 @@ class DebuggerCLI:
         self.monitor_ids = []
         self.running = True
 
+        # 用于存储解析后的消息
+        self.message_queue = Queue()
+
         self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.target_addr = ("255.255.255.255", 9999)
 
+    def put_message(self, msg_type, content):
+        self.message_queue.put({"type": msg_type, "content": content})
+
     def connect_jlink(self):
-        """ 尝试建立连接 """
+        """尝试建立连接"""
         try:
             if self.jlink.opened():
                 self.jlink.close()
@@ -46,7 +64,7 @@ class DebuggerCLI:
             self.jlink.connect(self.chip)
             self.jlink.rtt_start()
             self.connected = True
-            print(f"\n[INFO] J-Link已连接({self.chip})")
+            self.put_message("dbg_log", f"[INFO] J-Link已连接({self.chip})")
 
             # 自动发一个sync
             time.sleep(0.1)
@@ -58,10 +76,11 @@ class DebuggerCLI:
 
     def safe_rtt_read(self):
         try:
-            if not self.connected: return None
+            if not self.connected:
+                return None
             return self.jlink.rtt_read(0, 1024)
         except (pylink.errors.JLinkException, Exception) as e:
-            print(f"\n[WARN] J-Link 连接已丢失，正在尝试重连...")
+            self.put_message("dbg_log", f"[WARN] J-Link 连接已丢失，正在尝试重连...")
             self.connected = False
             return None
 
@@ -72,7 +91,7 @@ class DebuggerCLI:
         :param payload: 要发送的内容
         """
         if not self.connected:
-            print(f"\n[ERROR] 未连接J-Link, 无法发送指令")
+            self.put_message("dbg_log", f"[ERROR] 未连接到J-Link, 无法发送指令")
             return
         try:
             payload = list(payload) if payload else []
@@ -101,11 +120,12 @@ class DebuggerCLI:
                         cmd = buffer[2]
                         length = struct.unpack("<H", buffer[3:5])[0]
                         total_pkg_len = 2 + 1 + 2 + length + 1
-                        if len(buffer) < total_pkg_len: break
-                        payload = buffer[5: 5 + length]
-                        if (sum(buffer[2: 5 + length]) & 0xFF) == buffer[5 + length]:
+                        if len(buffer) < total_pkg_len:
+                            break
+                        payload = buffer[5 : 5 + length]
+                        if (sum(buffer[2 : 5 + length]) & 0xFF) == buffer[5 + length]:
                             self.handle_payload(cmd, payload)
-                        del buffer[: total_pkg_len]
+                        del buffer[:total_pkg_len]
                     else:
                         del buffer[0]
             time.sleep(0.01)
@@ -114,37 +134,44 @@ class DebuggerCLI:
         if cmd == CMD_MAPPING:
             self.parse_mapping_package(payload)
         elif cmd == CMD_MONITOR:
-            if self.monitor_fmt:
-                data = struct.unpack(self.monitor_fmt, payload)
-                update_data = {}
-                for i, val in enumerate(data):
-                    target_id = self.monitor_ids[i]
-                    self.param_map[target_id]['val'] = val
-                    update_data[str(target_id)] = {
-                        "name": self.param_map[target_id]['name'],
-                        "val": val
-                    }
-                self.udp_sock.sendto(json.dumps(update_data).encode(), self.target_addr)
+            self.handle_monitor(payload)
         elif cmd == CMD_SET_ACK:
             self.handle_ack(payload)
 
+    def handle_monitor(self, payload):
+        if self.monitor_fmt:
+            data = struct.unpack(self.monitor_fmt, payload)
+            update_data = {}
+            for i, val in enumerate(data):
+                target_id = self.monitor_ids[i]
+                self.param_map[target_id]["val"] = val
+                update_data[str(target_id)] = {
+                    "name": self.param_map[target_id]["name"],
+                    "val": val,
+                }
+            self.put_message("data", update_data)
+            self.udp_sock.sendto(json.dumps(update_data).encode(), self.target_addr)
+
     def handle_ack(self, payload):
-        """ 处理来自MCU的修改确认 """
+        """处理来自MCU的修改确认"""
         p_id = payload[0]
         if p_id in self.param_map:
-            p_type = self.param_map[p_id]['type']
+            p_type = self.param_map[p_id]["type"]
             fmt, size = TYPE_INFO[ord(p_type)]
             # 解析返回的真实值
-            final_val = struct.unpack(f"<{fmt}", payload[1:1 + size])[0]
+            final_val = struct.unpack(f"<{fmt}", payload[1 : 1 + size])[0]
 
             # 更新本地镜像并打印提示
-            self.param_map[p_id]['val'] = final_val
-            print(f"\n[ACK] 参数修改成功: ID {p_id} ({self.param_map[p_id]['name']}) -> {final_val}")
+            self.param_map[p_id]["val"] = final_val
+            self.put_message(
+                "dbg_log",
+                f"[INFO] 参数修改成功: ID {p_id} ({self.param_map[p_id]['name']}) -> {final_val}",
+            )
         else:
-            print(f"\n[WARN] 收到未知的参数ACK (ID: {p_id})")
+            self.put_message("dbg_log", f"[WARN] 收到未知的参数ACK (ID: {p_id})")
 
     def parse_mapping_package(self, payload):
-        """ 解析重构后的变长映射大包 """
+        """解析重构后的变长映射大包"""
         ptr = 0
         new_map = {}
         while ptr < len(payload):
@@ -156,29 +183,33 @@ class DebuggerCLI:
             ptr += 1
 
             # 根据类型解出初始 Value
-            fmt, size = TYPE_INFO.get(p_type, ('f', 4))
-            val = struct.unpack(f"<{fmt}", payload[ptr: ptr + size])[0]
+            fmt, size = TYPE_INFO.get(p_type, ("f", 4))
+            val = struct.unpack(f"<{fmt}", payload[ptr : ptr + size])[0]
             ptr += size
 
             # 提取以 \0 结尾的 Name
-            end = payload.find(b'\x00', ptr)
-            name = payload[ptr:end].decode('utf-8')
+            end = payload.find(b"\x00", ptr)
+            name = payload[ptr:end].decode("utf-8")
             ptr = end + 1
 
-            new_map[p_id] = {'name': name, 'type': chr(p_type), 'is_monitor': p_monitor, 'val': val}
+            new_map[p_id] = {
+                "name": name,
+                "type": chr(p_type),
+                "is_monitor": p_monitor,
+                "val": val,
+            }
 
         self.param_map = new_map
         self.rebuild_monitor_config()
-        print("\n[INFO] 映射表同步完成:")
-        for i, info in self.param_map.items():
-            print(f" ID {i}: {info['name']} ({info['type']}) | Monitor: {info['is_monitor']} | Value: {info['val']}")
+        print("[INFO] 映射表同步完成")
+        self.put_message("mapping", self.param_map)
 
     def rebuild_monitor_config(self):
-        """ 重新构建波形解析格式 """
+        """重新构建波形解析格式"""
         # 1. 筛选出所有 is_monitor 为 True 的参数 ID，并进行升序排序
-        self.monitor_ids = sorted([
-            p_id for p_id, info in self.param_map.items() if info['is_monitor']
-        ])
+        self.monitor_ids = sorted(
+            [p_id for p_id, info in self.param_map.items() if info["is_monitor"]]
+        )
 
         # 2. 根据排序后的 ID 顺序，构建 struct 解析字符串
         # 比如 ID 0 是 float, ID 2 是 uint16 -> 格式为 "<fH"
@@ -187,58 +218,38 @@ class DebuggerCLI:
 
         for p_id in self.monitor_ids:
             info = self.param_map[p_id]
-            fmt_parts.append(TYPE_INFO[ord(info['type'])][0])
-            self.monitor_names.append(info['name'])
+            fmt_parts.append(TYPE_INFO[ord(info["type"])][0])
+            self.monitor_names.append(info["name"])
 
         self.monitor_fmt = "<" + "".join(fmt_parts)
-        print(f"[DEBUG] 监控序列已更新: {self.monitor_names} (格式: {self.monitor_fmt})")
+        self.put_message(
+            "dbg_log",
+            f"[DEBUG] 监控序列已更新: {self.monitor_names} (格式: {self.monitor_fmt})",
+        )
 
-    def run(self):
+    def send_set_cmd(self, p_id, val):
+        if p_id not in self.param_map:
+            return
+        fmt = TYPE_INFO[ord(self.param_map[p_id]["type"])][0]
         try:
-            threading.Thread(target=self.receive_loop, daemon=True).start()
-            print("--- 通用调试终端 ---")
-            print("(输入 'sync', 'ls', 'set [id] [val]', 'plot [id1] [id2] ...', 'exit')")
-            while self.running:
-                cmd_in = input("\n>> ").strip().split()
-                if not cmd_in: continue
-                op = cmd_in[0].lower()
-                if op == "sync":
-                    self.send_packet(CMD_REQ_MAP)
-                elif op == "ls":
-                    for i, v in self.param_map.items(): print(f"[{i}] {v['name']}: {v['val']}")
-                elif op == "set" and len(cmd_in) == 3:
-                    p_id, val = int(cmd_in[1]), float(cmd_in[2])
-                    fmt = TYPE_INFO[ord(self.param_map[p_id]['type'])][0]
-                    # 根据该 ID 的实际类型进行打包发送
-                    try:
-                        payload = struct.pack(f"<B{fmt}", p_id, val if 'f' in fmt else int(val))
-                        self.send_packet(CMD_SET_VAL, payload)
-                    except struct.error:
-                        print("\n[WARN] 输入数据格式或范围不匹配")
-                elif op == "plot":
-                    if len(cmd_in) < 2:
-                        print("\n[WARN] 输入格式错误")
-                        continue
-                    target_ids = cmd_in[1:]
-                    try:
-                        target_ids = [tid for tid in target_ids if int(tid) in self.monitor_ids]
-                        if getattr(sys, 'frozen', False):
-                            exe_path = os.path.join(os.path.dirname(sys.executable), "display.exe")
-                            subprocess.Popen([exe_path] + target_ids)
-                        else:
-                            subprocess.Popen([sys.executable, "display.py"] + target_ids)
-                        print(f"\n[INFO] 正在唤起 ID {target_ids} 的波形窗口")
-                    except Exception as e:
-                        print(f"\n[ERROR] 无法启动显示进程: {e}")
-                elif op == "exit":
-                    self.running = False
-                    self.jlink.rtt_stop()
-                    self.jlink.close()
-        except KeyboardInterrupt:
-            self.running = False
-            self.jlink.rtt_stop()
-            self.jlink.close()
+            payload = struct.pack(f"<B{fmt}", p_id, val if "f" in fmt else int(val))
+            self.send_packet(CMD_SET_VAL, payload)
+        except:
+            pass
 
+    def poll(self):
+        if not self.message_queue.empty():
+            return self.message_queue.get()
+        return None
 
-if __name__ == "__main__":
-    DebuggerCLI().run()
+    def close(self):
+        """释放资源并停止线程"""
+        self.running = False
+        self.put_message("dbg_log", "[INFO] 正在关闭 RTT 与 J-Link...")
+        if self.jlink.opened():
+            try:
+                self.jlink.rtt_stop()
+                self.jlink.close()
+            except:
+                pass
+        self.connected = False
